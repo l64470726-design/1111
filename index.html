@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>生日冒险</title>
+<style>
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #020617, #000);
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+}
+
+canvas {
+  background: #020617;
+  border-radius: 16px;
+  box-shadow: 0 0 40px rgba(255,255,255,0.15);
+}
+
+#hint {
+  position: absolute;
+  bottom: 20px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="canvas" width="640" height="400"></canvas>
+<div id="hint">方向键移动 · 找到钥匙 · 走出迷宫</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let state = "game";
+
+// ===== 迷宫（1 = 墙）=====
+const maze = [
+"11111111111111111111",
+"10000000000000000001",
+"10111101111101111001",
+"10100001000001000001",
+"10101111011111011101",
+"10001000010000010001",
+"11101111110111110111",
+"10000000000100000001",
+"10111111110101111101",
+"10000000000001000001",
+"11111111111111111111"
+];
+
+const tile = 32;
+
+// 玩家
+const player = { x: 1, y: 1, r: 10 };
+
+// 钥匙 & 门
+const key = { x: 9, y: 5, got: false };
+const door = { x: 18, y: 9 };
+
+const keys = {};
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+function canMove(nx, ny) {
+  return maze[ny][nx] === "0";
+}
+
+function drawMaze() {
+  for (let y = 0; y < maze.length; y++) {
+    for (let x = 0; x < maze[y].length; x++) {
+      if (maze[y][x] === "1") {
+        ctx.fillStyle = "#020617";
+        ctx.fillRect(x * tile, y * tile, tile, tile);
+        ctx.strokeStyle = "#1e293b";
+        ctx.strokeRect(x * tile, y * tile, tile, tile);
+      }
+    }
+  }
+}
+
+function updateGame() {
+  let dx = 0, dy = 0;
+  if (keys["ArrowUp"]) dy = -1;
+  if (keys["ArrowDown"]) dy = 1;
+  if (keys["ArrowLeft"]) dx = -1;
+  if (keys["ArrowRight"]) dx = 1;
+
+  if (dx || dy) {
+    const nx = player.x + dx;
+    const ny = player.y + dy;
+    if (canMove(nx, ny)) {
+      player.x = nx;
+      player.y = ny;
+    }
+  }
+
+  if (!key.got && player.x === key.x && player.y === key.y) {
+    key.got = true;
+  }
+
+  if (key.got && player.x === door.x && player.y === door.y) {
+    state = "fireworks";
+  }
+}
+
+function drawGame() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawMaze();
+
+  // 门
+  ctx.fillStyle = key.got ? "#22c55e" : "#475569";
+  ctx.fillRect(door.x*tile+8, door.y*tile+8, 16, 16);
+
+  // 钥匙
+  if (!key.got) {
+    ctx.fillStyle = "#facc15";
+    ctx.beginPath();
+    ctx.arc(key.x*tile+16, key.y*tile+16, 6, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // 玩家
+  ctx.fillStyle = "#38bdf8";
+  ctx.beginPath();
+  ctx.arc(player.x*tile+16, player.y*tile+16, player.r, 0, Math.PI*2);
+  ctx.fill();
+}
+
+// ===== 烟花 + 星光蛋糕 =====
+let fireworks = [];
+let t = 0;
+
+function launchFirework() {
+  const cx = Math.random() * canvas.width;
+  const cy = Math.random() * canvas.height * 0.5;
+  for (let i = 0; i < 80; i++) {
+    fireworks.push({
+      x: cx, y: cy,
+      vx: Math.cos(i) * Math.random() * 4,
+      vy: Math.sin(i) * Math.random() * 4,
+      life: 100
+    });
+  }
+}
+
+function drawCake() {
+  ctx.fillStyle = "#fde68a";
+  ctx.beginPath();
+  ctx.arc(canvas.width/2, canvas.height/2+40, 80, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = "#fff";
+  ctx.font = "32px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Happy Birthday", canvas.width/2, canvas.height/2-60);
+}
+
+function drawFireworks() {
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if (t % 40 === 0) launchFirework();
+
+  fireworks.forEach(p => {
+    ctx.fillStyle = "#f472b6";
+    ctx.fillRect(p.x, p.y, 2, 2);
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+  });
+
+  fireworks = fireworks.filter(p => p.life > 0);
+  drawCake();
+  t++;
+}
+
+function loop() {
+  if (state === "game") {
+    updateGame();
+    drawGame();
+  } else {
+    drawFireworks();
+  }
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
